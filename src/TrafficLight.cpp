@@ -42,7 +42,23 @@ TrafficLightPhase TrafficLight::getCurrentPhase()
 
 void TrafficLight::simulate()
 {
-    // FP.2b : Finally, the private method „cycleThroughPhases“ should be started in a thread when the public method „simulate“ is called. To do this, use the thread queue in the base class. 
+    // FP.2b : Finally, the private method „cycleThroughPhases“ should be started in a thread when the public method „simulate“ is called. To do this, use the thread queue in the base class.
+    threads.emplace_back(std::thread(&TrafficLight::cycleThroughPhases, this));
+}
+
+// Determines next cycle length.
+std::chrono::milliseconds TrafficLight::getPhaseCycleLength()
+{
+    std::random_device rd;
+    std::mt19937 eng(rd());
+    std::uniform_int_distribution<int> distr(4000, 6000);
+    return std::chrono::milliseconds(distr(eng));
+}
+
+void TrafficLight::toggleCurrentPhase() 
+{
+    if (_currentPhase == TrafficLightPhase::red) { _currentPhase = TrafficLightPhase::green; }
+    else { _currentPhase = TrafficLightPhase::red; }
 }
 
 // virtual function which is executed in a thread
@@ -52,4 +68,20 @@ void TrafficLight::cycleThroughPhases()
     // and toggles the current phase of the traffic light between red and green and sends an update method 
     // to the message queue using move semantics. The cycle duration should be a random value between 4 and 6 seconds. 
     // Also, the while-loop should use std::this_thread::sleep_for to wait 1ms between two cycles. 
+
+    // init stopwatch
+    auto lastUpdate = std::chrono::system_clock::now();
+    auto currentPhaseLength = getPhaseCycleLength();
+
+    while(true)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        auto currentTime = std::chrono::system_clock::now();
+        if ((currentTime - lastUpdate) < currentPhaseLength) continue;
+        // Update values for next phase cycle.
+        lastUpdate = currentTime;
+        currentPhaseLength = getPhaseCycleLength();
+        toggleCurrentPhase();
+        // TODO: Send update to message queue when it is implemented.
+    }
 }
