@@ -10,6 +10,28 @@
 class Vehicle;
 
 
+enum TrafficLightPhase
+{
+    red,
+    green,
+};
+
+
+class TrafficSignaller 
+{
+    public:
+        TrafficSignaller() {
+            _light = TrafficLightPhase::red;
+        }
+        void waitForGreenSignal();
+        void updateSignal(TrafficLightPhase&& phase);
+    private:
+        TrafficLightPhase _light;
+        std::condition_variable _condition;
+        std::mutex _mutex;
+};
+
+
 // FP.3 Define a class „MessageQueue“ which has the public methods send and receive. 
 // Send should take an rvalue reference of type TrafficLightPhase whereas receive should return this type. 
 // Also, the class should define an std::dequeue called _queue, which stores objects of type TrafficLightPhase. 
@@ -34,12 +56,6 @@ private:
 // can be either „red“ or „green“. Also, add the private method „void cycleThroughPhases()“. 
 // Furthermore, there shall be the private member _currentPhase which can take „red“ or „green“ as its value. 
 
-enum TrafficLightPhase
-{
-    red,
-    green,
-};
-
 class TrafficLight : public TrafficObject
 {
 public:
@@ -63,7 +79,7 @@ private:
     // and use it within the infinite loop to push each new TrafficLightPhase into it by calling 
     // send in conjunction with move semantics.
     TrafficLightPhase _currentPhase;
-    MessageQueue<TrafficLightPhase> _lightQueue;
+    TrafficSignaller _signaller;
 };
 
 #endif

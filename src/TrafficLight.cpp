@@ -2,6 +2,23 @@
 #include <random>
 #include "TrafficLight.h"
 
+
+// Waits until light turns green.
+void TrafficSignaller::waitForGreenSignal()
+{
+    std::unique_lock<std::mutex> uniqueLock(_mutex);
+    _condition.wait(uniqueLock, [this] { return _light == TrafficLightPhase::green; });
+}
+
+// Posts the current traffic light phase.
+void TrafficSignaller::updateSignal(TrafficLightPhase&& phase)
+{
+    std::lock_guard<std::mutex> guard(_mutex);
+
+    _light = std::move(phase);
+    _condition.notify_one();
+}
+
 /* Implementation of class "MessageQueue" */
 
 template <typename T>
@@ -42,10 +59,7 @@ void TrafficLight::waitForGreen()
     // FP.5b : add the implementation of the method waitForGreen, in which an infinite while-loop 
     // runs and repeatedly calls the receive function on the message queue. 
     // Once it receives TrafficLightPhase::green, the method returns.
-    while (true) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        if (_lightQueue.receive() == TrafficLightPhase::green) { return; }
-    }
+    _signaller.waitForGreenSignal();
 }
 
 TrafficLightPhase TrafficLight::getCurrentPhase()
@@ -64,7 +78,7 @@ std::chrono::milliseconds TrafficLight::getPhaseCycleLength()
 {
     std::random_device rd;
     std::mt19937 eng(rd());
-    std::uniform_int_distribution<int> distr(4000, 6000);
+    std::uniform_int_distribution<int> distr(5000, 5000);
     return std::chrono::milliseconds(distr(eng));
 }
 
@@ -95,7 +109,6 @@ void TrafficLight::cycleThroughPhases()
         lastUpdate = currentTime;
         currentPhaseLength = getPhaseCycleLength();
         toggleCurrentPhase();
-        _lightQueue.send(getCurrentPhase());
-        std::cout << "Light is: " << getCurrentPhase() << std::endl;
+        _signaller.updateSignal(getCurrentPhase());
     }
 }
